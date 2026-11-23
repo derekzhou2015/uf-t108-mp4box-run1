@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { validateEntryCount } from '#/entry-count';
 import { Log } from '#/log';
 import type { Sample } from '@types';
 
@@ -16,6 +17,8 @@ export class sttsBox extends FullBox {
     this.sample_counts.length = 0;
     this.sample_deltas.length = 0;
     if (this.version === 0) {
+      const invalid = validateEntryCount(this, stream, entry_count, 8, 4);
+      if (invalid) return invalid;
       for (let i = 0; i < entry_count; i++) {
         this.sample_counts.push(stream.readUint32());
         let delta = stream.readInt32();

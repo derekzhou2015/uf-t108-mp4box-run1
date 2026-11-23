@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { validateDeclaredCount, validateEntryCount } from '#/entry-count';
 
 export class stszBox extends FullBox {
   static override readonly fourcc = 'stsz' as const;
@@ -15,6 +16,17 @@ export class stszBox extends FullBox {
     if (this.version === 0) {
       this.sample_size = stream.readUint32();
       this.sample_count = stream.readUint32();
+      if (this.sample_size === 0) {
+        // variable size: one 4-byte size per declared sample, reconciled
+        // against the bytes the box actually carries
+        const invalid = validateEntryCount(this, stream, this.sample_count, 4, 8);
+        if (invalid) return invalid;
+      } else {
+        // constant size: no per-entry table exists, only an absolute ceiling
+        // can stop a forged count from materializing an unbounded array
+        const invalid = validateDeclaredCount(this, stream, this.sample_count);
+        if (invalid) return invalid;
+      }
       for (let i = 0; i < this.sample_count; i++) {
         if (this.sample_size === 0) {
           this.sample_sizes.push(stream.readUint32());

@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { validateEntryCount } from '#/entry-count';
 
 interface Entry {
   sample_count: number;
@@ -17,13 +18,17 @@ export class sbgpBox extends FullBox {
   parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     this.grouping_type = stream.readString(4);
+    let fixedBytesRead = 8; // grouping_type (4) + entry_count (4)
     if (this.version === 1) {
       this.grouping_type_parameter = stream.readUint32();
+      fixedBytesRead += 4;
     } else {
       this.grouping_type_parameter = 0;
     }
     this.entries = [];
     const entry_count = stream.readUint32();
+    const invalid = validateEntryCount(this, stream, entry_count, 8, fixedBytesRead);
+    if (invalid) return invalid;
     for (let i = 0; i < entry_count; i++) {
       this.entries.push({
         sample_count: stream.readInt32(),

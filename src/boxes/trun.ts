@@ -8,6 +8,7 @@ import {
   TRUN_FLAGS_FLAGS,
   TRUN_FLAGS_SIZE,
 } from '#/constants';
+import { validateEntryCount } from '#/entry-count';
 
 export class trunBox extends FullBox {
   static override readonly fourcc = 'trun' as const;
@@ -44,6 +45,21 @@ export class trunBox extends FullBox {
     this.sample_flags = [];
     this.sample_composition_time_offset = [];
     if (this.size - this.hdr_size > readBytes) {
+      const bytesPerSample =
+        ((this.flags & TRUN_FLAGS_DURATION) !== 0 ? 4 : 0) +
+        ((this.flags & TRUN_FLAGS_SIZE) !== 0 ? 4 : 0) +
+        ((this.flags & TRUN_FLAGS_FLAGS) !== 0 ? 4 : 0) +
+        ((this.flags & TRUN_FLAGS_CTS_OFFSET) !== 0 ? 4 : 0);
+      if (bytesPerSample > 0) {
+        const invalid = validateEntryCount(
+          this,
+          stream,
+          this.sample_count,
+          bytesPerSample,
+          readBytes,
+        );
+        if (invalid) return invalid;
+      }
       for (let i = 0; i < this.sample_count; i++) {
         if (this.flags & TRUN_FLAGS_DURATION) {
           this.sample_duration[i] = stream.readUint32();
